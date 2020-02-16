@@ -114,7 +114,7 @@ There are three main components.
 2. the 'tags' for the points
 3. the contour indexes (that define which points belong to which contour)
 */
-std::string do_outline(std::vector<FT_Vector> points, std::vector<char> tags, std::vector<short> contours)
+  std::string do_outline(std::vector<FT_Vector> points, std::vector<char> tags, std::vector<short> contours, double offsetX, double offsetY)
 {
 	std::stringstream debug, svg;
 	std::cout << "<!-- do outline -->\n";
@@ -140,26 +140,26 @@ std::string do_outline(std::vector<FT_Vector> points, std::vector<char> tags, st
 
 	int contour_starti = 0;
 	int contour_endi = 0;
-	for ( int i = 0 ; i < contours.size() ; i++ ) {
+	for ( unsigned int i = 0 ; i < contours.size() ; i++ ) {
 		contour_endi = contours.at(i);
 		debug << "new contour starting. startpt index, endpt index:";
 		debug << contour_starti << "," << contour_endi << "\n";
 		int offset = contour_starti;
 		int npts = contour_endi - contour_starti + 1;
 		debug << "number of points in this contour: " << npts << "\n";
-		debug << "moving to first pt " << points[offset].x << "," << points[offset].y << "\n";
-		svg << "\n M " << points[contour_starti].x << "," << points[contour_starti].y << "\n";
+		debug << "moving to first pt " << points[offset].x + offsetX << "," << points[offset].y + offsetY<< "\n";
+		svg << "\n M " << points[contour_starti].x + offsetX << "," << points[contour_starti].y + offsetY << "\n";
 		debug << "listing pts: [this pt index][isctrl] <next pt index><isctrl> [x,y] <nx,ny>\n";
 		for ( int j = 0; j < npts; j++ ) {
 			int thisi = j%npts + offset;
 			int nexti = (j+1)%npts + offset;
 			int nextnexti = (j+2)%npts + offset;
-			int x = points[thisi].x;
-			int y = points[thisi].y;
-			int nx = points[nexti].x;
-			int ny = points[nexti].y;
-			int nnx = points[nextnexti].x;
-			int nny = points[nextnexti].y;
+			int x = points[thisi].x + offsetX;
+			int y = points[thisi].y + offsetY;
+			int nx = points[nexti].x + offsetX;
+			int ny = points[nexti].y + offsetY;
+			int nnx = points[nextnexti].x + offsetX;
+			int nny = points[nextnexti].y + offsetY;
 			bool this_tagbit1 = (tags[ thisi ] & 1);
 			bool next_tagbit1 = (tags[ nexti ] & 1);
 			bool nextnext_tagbit1 = (tags[ nextnexti ] & 1);
@@ -233,6 +233,9 @@ public:
 	std::stringstream debug, tmp;
 	int bbwidth, bbheight;
 
+  double offsetX, offsetY; //Shift the glyph given the offset
+  double gWidth, gHeight; //Gliph width & height
+
 	glyph( ttf_file &f, std::string unicode_str )
 	{
 		file = f;
@@ -251,13 +254,23 @@ public:
 		init( std::string(unicode_c_str) );
 	}
 
+  glyph( const char * filename, const char * unicode_c_str, double offsetX, double offsetY )
+	{
+		this->file = ttf_file( std::string(filename) );
+		init( std::string(unicode_c_str), offsetX, offsetY );
+	}
+
+  
 	void free()
 	{
 		file.free();
 	}
 
-	void init( std::string unicode_s )
+  void init( std::string unicode_s, double offsetX = 0.0, double offsetY = 0.0)
 	{
+	  this->offsetX = offsetX;
+	  this->offsetY = offsetY;
+	  
 		face = file.face;
 		codepoint = strtol( unicode_s.c_str() , NULL, 0 );
 		// Load the Glyph into the face's Glyph Slot + print details
@@ -278,6 +291,11 @@ public:
 			<< " Height: " << gm.height
 			<< " Hor. Advance: " << gm.horiAdvance
 			<< " Vert. Advance: " << gm.vertAdvance;
+
+		this->gWidth = gm.width;
+		this->gHeight = gm.height;
+		this->gWidth = gm.horiAdvance; //TEST
+		this->gHeight = gm.vertAdvance;
 
 		// Print outline details, taken from the glyph in the slot.
 		debug << "\nNum points: " << ftoutline.n_points;
@@ -441,7 +459,7 @@ public:
 		std::vector<FT_Vector> pointsv(ftpoints,ftpoints+ftoutline.n_points);
 		std::vector<char> tagsv(tags,tags+ftoutline.n_points);
 		std::vector<short> contoursv(contours,contours+ftoutline.n_contours);
-		return do_outline(pointsv, tagsv, contoursv);
+		return do_outline(pointsv, tagsv, contoursv, this->offsetX, this->offsetY);
 	}
 
 	std::string svgfooter()  {
