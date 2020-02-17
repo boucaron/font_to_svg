@@ -49,6 +49,7 @@ endorsement.
 #include <sstream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 namespace font2svg {
 
@@ -108,13 +109,57 @@ public:
 };
 
 
+  struct Point2D {
+    double x, y;
+    Point2D() { x = 0.0; y = 0.0; }
+    Point2D(double x, double y) { this->x = x ; this->y = y; }
+  };
+
+  /** Return the interpolated Point2D for quadraticBezier */
+  Point2D quadraticBezier(const Point2D &p0, const Point2D &p1, const Point2D &p2,
+			  double t = 0.01) {
+    Point2D p;
+    p.x = pow(1 - t, 2) * p0.x +
+      (1 - t) * 2 * t * p1.x +
+      t * t * p2.x;
+    p.y = pow(1 - t, 2) * p0.y +
+      (1 - t) * 2 * t * p1.y +
+      t * t * p2.y;
+
+    return p;
+  }
+  std::vector<Point2D> fullQuadraticBezier(const Point2D &p0, const Point2D &p1, const Point2D &p2,
+					   double increment = 0.1) {
+    std::vector<Point2D> res;
+    for(double i = 0 ; i < 1.0 ;  i += increment ) {
+      res.push_back( quadraticBezier(p0, p1, p2, i) );
+    }
+    return res;
+  }
+  std::string debugQuadraticBezier(const std::vector<Point2D> &quadBezier)  {
+    std::stringstream res;
+    for(unsigned int i = 0 ; i < quadBezier.size() ; i++ ) {
+      res << " Index = " << i << " Point(X,Y) = " << quadBezier[i].x << "," << quadBezier[i].y << "\n";
+    }
+    return res.str();
+  }
+  std::string svgQuadraticBezier(const std::vector<Point2D> &quadBezier)  {
+    std::stringstream res;
+    for(unsigned int i = 0 ; i < quadBezier.size() ; i++ ) {
+      res << " L " << quadBezier[i].x << " " << quadBezier[i].y << "\n";
+    }
+    return res.str();
+  }
+
 /* Draw the outline of the font as svg.
 There are three main components.
 1. the points
 2. the 'tags' for the points
 3. the contour indexes (that define which points belong to which contour)
+4,5. offset on X and Y -> translation
+6. SVG output with Bezier statements (otherwise interpolate and generate only line segments)
 */
-  std::string do_outline(std::vector<FT_Vector> points, std::vector<char> tags, std::vector<short> contours, double offsetX, double offsetY)
+  std::string do_outline(std::vector<FT_Vector> points, std::vector<char> tags, std::vector<short> contours, double offsetX, double offsetY, bool generateBezierStatements = true)
 {
 	std::stringstream debug, svg;
 	std::cout << "<!-- do outline -->\n";
@@ -191,15 +236,27 @@ There are three main components.
 			}
 
 			if (!this_isctl && next_isctl && !nextnext_isctl) {
-				svg << " Q " << nx << "," << ny << " " << nnx << "," << nny << "\n";
-				debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
+			  if ( generateBezierStatements ) {
+			    svg << " Q " << nx << "," << ny << " " << nnx << "," << nny << "\n"; 
+			    debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
+			  }
+			  else {
+			    svg << svgQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) ));
+			    debug << " BEZIER INTERPOLATION " << debugQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) )) <<  "\n";
+			  }				
 			} else if (!this_isctl && next_isctl && nextnext_isctl) {
 				debug << " two ctl pts coming. adding point halfway between " << nexti << " and " << nextnexti << ":";
 				debug << " reseting nnx and nny to halfway pt";
 				nnx = (nx + nnx) / 2;
 				nny = (ny + nny) / 2;
-				svg << " Q " << nx << "," << ny << " " << nnx << "," << nny << "\n";
-				debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
+				if ( generateBezierStatements ) {
+				  svg << " Q " << nx << "," << ny << " " << nnx << "," << nny << "\n";
+				  debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
+				}
+				else {
+				  svg << svgQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) ));
+				  debug << " BEZIER INTERPOLATION " << debugQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) )) << "\n";
+				}
 			} else if (!this_isctl && !next_isctl) {
 				svg << " L " << nx << "," << ny << "\n";
 				debug << " line to " << nx << "," << ny << "\n";			
@@ -235,7 +292,8 @@ public:
 
   double offsetX, offsetY; //Shift the glyph given the offset
   double gWidth, gHeight; //Gliph width & height
-
+  bool generateBezierStatements; //SVG with bezier statements (if false, Bezier transformed as line segments)
+  
 	glyph( ttf_file &f, std::string unicode_str )
 	{
 		file = f;
@@ -254,10 +312,10 @@ public:
 		init( std::string(unicode_c_str) );
 	}
 
-  glyph( const char * filename, const char * unicode_c_str, double offsetX, double offsetY )
+  glyph( const char * filename, const char * unicode_c_str, double offsetX, double offsetY, bool generateBezierStatements )
 	{
 		this->file = ttf_file( std::string(filename) );
-		init( std::string(unicode_c_str), offsetX, offsetY );
+		init( std::string(unicode_c_str), offsetX, offsetY, generateBezierStatements );
 	}
 
   
@@ -266,10 +324,11 @@ public:
 		file.free();
 	}
 
-  void init( std::string unicode_s, double offsetX = 0.0, double offsetY = 0.0)
+  void init( std::string unicode_s, double offsetX = 0.0, double offsetY = 0.0, bool generateBezierStatements = true)
 	{
 	  this->offsetX = offsetX;
 	  this->offsetY = offsetY;
+	  this->generateBezierStatements = generateBezierStatements;
 	  
 		face = file.face;
 		codepoint = strtol( unicode_s.c_str() , NULL, 0 );
@@ -459,7 +518,7 @@ public:
 		std::vector<FT_Vector> pointsv(ftpoints,ftpoints+ftoutline.n_points);
 		std::vector<char> tagsv(tags,tags+ftoutline.n_points);
 		std::vector<short> contoursv(contours,contours+ftoutline.n_contours);
-		return do_outline(pointsv, tagsv, contoursv, this->offsetX, this->offsetY);
+		return do_outline(pointsv, tagsv, contoursv, this->offsetX, this->offsetY, this->generateBezierStatements);
 	}
 
 	std::string svgfooter()  {

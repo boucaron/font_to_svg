@@ -17,7 +17,7 @@ int main( int argc, char * argv[] )
     s << (int)utf8;    //Not really UTF-8 just a hack
     std::string unicodeChar = s.str();
     // std::cout << " unicodeChar = " << unicodeChar << std::endl;
-    font2svg::glyph g( argv[1], unicodeChar.c_str(), offsetX, offsetY, true);
+    font2svg::glyph g( argv[1], unicodeChar.c_str(), offsetX, offsetY, false); //Only line segments no quadratic bezier
     if ( i == 0 ) {
       std::cout << g.svgheader();
     }
