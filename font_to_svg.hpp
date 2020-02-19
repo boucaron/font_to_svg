@@ -128,6 +128,7 @@ public:
 
     return p;
   }
+  /** Simply iterate on @see quadraticBezier using the provided increment */
   std::vector<Point2D> fullQuadraticBezier(const Point2D &p0, const Point2D &p1, const Point2D &p2,
 					   double increment = 0.1) {
     std::vector<Point2D> res;
@@ -136,6 +137,7 @@ public:
     }
     return res;
   }
+  
   std::string debugQuadraticBezier(const std::vector<Point2D> &quadBezier)  {
     std::stringstream res;
     for(unsigned int i = 0 ; i < quadBezier.size() ; i++ ) {
@@ -143,6 +145,8 @@ public:
     }
     return res.str();
   }
+
+  /** Generate the subpath as line segments */
   std::string svgQuadraticBezier(const std::vector<Point2D> &quadBezier)  {
     std::stringstream res;
     for(unsigned int i = 0 ; i < quadBezier.size() ; i++ ) {
