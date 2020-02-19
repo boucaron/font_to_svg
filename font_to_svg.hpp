@@ -53,7 +53,10 @@ endorsement.
 
 namespace font2svg {
 
+  /** Debug stream */
 std::stringstream debug;
+  /** Enable of disable the debug stream */
+bool hasDebug = false; 
 
 FT_Vector halfway_between( FT_Vector p1, FT_Vector p2 )
 {
@@ -80,30 +83,30 @@ public:
 	{
 		filename = fname;
 		error = FT_Init_FreeType( &library );
-		debug << "Init error code: " << error;
+		if ( hasDebug ) debug << "Init error code: " << error;
 
 		// Load a typeface
 		error = FT_New_Face( library, filename.c_str(), 0, &face );
-		debug << "\nFace load error code: " << error;
-		debug << "\nfont filename: " << filename;
+		if ( hasDebug ) debug << "\nFace load error code: " << error;
+		if ( hasDebug ) debug << "\nfont filename: " << filename;
 		if (error) {
 			std::cerr << "problem loading file " << filename << "\n";
 			exit(1);
 		}
-		debug << "\nFamily Name: " << face->family_name;
-		debug << "\nStyle Name: " << face->style_name;
-		debug << "\nNumber of faces: " << face->num_faces;
-		debug << "\nNumber of glyphs: " << face->num_glyphs;
+		if ( hasDebug ) debug << "\nFamily Name: " << face->family_name;
+		if ( hasDebug ) debug << "\nStyle Name: " << face->style_name;
+		if ( hasDebug ) debug << "\nNumber of faces: " << face->num_faces;
+		if ( hasDebug ) debug << "\nNumber of glyphs: " << face->num_glyphs;
 	}
 
 	void free()
 	{
-		debug << "\n<!--";
+		if ( hasDebug ) debug << "\n<!--";
 		error = FT_Done_Face( face );
-		debug << "\nFree face. error code: " << error;
+		if ( hasDebug ) debug << "\nFree face. error code: " << error;
 		error = FT_Done_FreeType( library );
-		debug << "\nFree library. error code: " << error;
-		debug << "\n-->\n";
+		if ( hasDebug ) debug << "\nFree library. error code: " << error;
+		if ( hasDebug ) debug << "\n-->\n";
 	}
 
 };
@@ -140,8 +143,10 @@ public:
   
   std::string debugQuadraticBezier(const std::vector<Point2D> &quadBezier)  {
     std::stringstream res;
-    for(unsigned int i = 0 ; i < quadBezier.size() ; i++ ) {
-      res << " Index = " << i << " Point(X,Y) = " << quadBezier[i].x << "," << quadBezier[i].y << "\n";
+    if ( hasDebug ) {
+      for(unsigned int i = 0 ; i < quadBezier.size() ; i++ ) {
+	res << " Index = " << i << " Point(X,Y) = " << quadBezier[i].x << "," << quadBezier[i].y << "\n";
+      }
     }
     return res.str();
   }
@@ -191,14 +196,14 @@ There are three main components.
 	int contour_endi = 0;
 	for ( unsigned int i = 0 ; i < contours.size() ; i++ ) {
 		contour_endi = contours.at(i);
-		debug << "new contour starting. startpt index, endpt index:";
-		debug << contour_starti << "," << contour_endi << "\n";
+		if ( hasDebug ) debug << "new contour starting. startpt index, endpt index:";
+		if ( hasDebug ) debug << contour_starti << "," << contour_endi << "\n";
 		int offset = contour_starti;
 		int npts = contour_endi - contour_starti + 1;
-		debug << "number of points in this contour: " << npts << "\n";
-		debug << "moving to first pt " << points[offset].x + offsetX << "," << points[offset].y + offsetY<< "\n";
+		if ( hasDebug ) debug << "number of points in this contour: " << npts << "\n";
+		if ( hasDebug ) debug << "moving to first pt " << points[offset].x + offsetX << "," << points[offset].y + offsetY<< "\n";
 		svg << "\n M " << points[contour_starti].x + offsetX << "," << points[contour_starti].y + offsetY << "\n";
-		debug << "listing pts: [this pt index][isctrl] <next pt index><isctrl> [x,y] <nx,ny>\n";
+		if ( hasDebug ) debug << "listing pts: [this pt index][isctrl] <next pt index><isctrl> [x,y] <nx,ny>\n";
 		for ( int j = 0; j < npts; j++ ) {
 			int thisi = j%npts + offset;
 			int nexti = (j+1)%npts + offset;
@@ -215,26 +220,26 @@ There are three main components.
 			bool this_isctl = !this_tagbit1;
 			bool next_isctl = !next_tagbit1;
 			bool nextnext_isctl = !nextnext_tagbit1;
-			debug << " [" << thisi << "]";
-			debug << "[" << !this_tagbit1 << "]";
-			debug << " <" << nexti << ">";
-			debug << "<" << !next_tagbit1 << ">";
-			debug << " <<" << nextnexti << ">>";
-			debug << "<<" << !nextnext_tagbit1 << ">>";
-			debug << " [" << x << "," << y << "]";
-			debug << " <" << nx << "," << ny << ">";
-			debug << " <<" << nnx << "," << nny << ">>";
-			debug << "\n";
+			if ( hasDebug ) debug << " [" << thisi << "]";
+			if ( hasDebug ) debug << "[" << !this_tagbit1 << "]";
+			if ( hasDebug ) debug << " <" << nexti << ">";
+			if ( hasDebug ) debug << "<" << !next_tagbit1 << ">";
+			if ( hasDebug ) debug << " <<" << nextnexti << ">>";
+			if ( hasDebug ) debug << "<<" << !nextnext_tagbit1 << ">>";
+			if ( hasDebug ) debug << " [" << x << "," << y << "]";
+			if ( hasDebug ) debug << " <" << nx << "," << ny << ">";
+			if ( hasDebug ) debug << " <<" << nnx << "," << nny << ">>";
+			if ( hasDebug ) debug << "\n";
 
 			if (this_isctl && next_isctl) {
-				debug << " two adjacent ctl pts. adding point halfway between " << thisi << " and " << nexti << ":";
-				debug << " reseting x and y to ";
+				if ( hasDebug ) debug << " two adjacent ctl pts. adding point halfway between " << thisi << " and " << nexti << ":";
+				if ( hasDebug ) debug << " reseting x and y to ";
 				x = (x + nx) / 2;
 				y = (y + ny) / 2;
 				this_isctl = false;
-				debug << " [" << x << "," << y <<"]\n";
+				if ( hasDebug ) debug << " [" << x << "," << y <<"]\n";
 				if (j==0) {
-					debug << "first pt in contour was ctrl pt. moving to non-ctrl pt\n";
+					if ( hasDebug ) debug << "first pt in contour was ctrl pt. moving to non-ctrl pt\n";
 					svg << " M " << x << "," << y << "\n";
 				}
 			}
@@ -242,37 +247,37 @@ There are three main components.
 			if (!this_isctl && next_isctl && !nextnext_isctl) {
 			  if ( generateBezierStatements ) {
 			    svg << " Q " << nx << "," << ny << " " << nnx << "," << nny << "\n"; 
-			    debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
+			    if ( hasDebug ) debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
 			  }
 			  else {
 			    svg << svgQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) ));
-			    debug << " BEZIER INTERPOLATION " << debugQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) )) <<  "\n";
+			    if ( hasDebug ) debug << " BEZIER INTERPOLATION " << debugQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) )) <<  "\n";
 			  }				
 			} else if (!this_isctl && next_isctl && nextnext_isctl) {
-				debug << " two ctl pts coming. adding point halfway between " << nexti << " and " << nextnexti << ":";
-				debug << " reseting nnx and nny to halfway pt";
+				if ( hasDebug ) debug << " two ctl pts coming. adding point halfway between " << nexti << " and " << nextnexti << ":";
+				if ( hasDebug ) debug << " reseting nnx and nny to halfway pt";
 				nnx = (nx + nnx) / 2;
 				nny = (ny + nny) / 2;
 				if ( generateBezierStatements ) {
 				  svg << " Q " << nx << "," << ny << " " << nnx << "," << nny << "\n";
-				  debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
+				  if ( hasDebug ) debug << " bezier to " << nnx << "," << nny << " ctlx, ctly: " << nx << "," << ny << "\n";
 				}
 				else {
 				  svg << svgQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) ));
-				  debug << " BEZIER INTERPOLATION " << debugQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) )) << "\n";
+				  if ( hasDebug ) debug << " BEZIER INTERPOLATION " << debugQuadraticBezier(fullQuadraticBezier( Point2D(x,y), Point2D(nx, ny),  Point2D(nnx, nny) )) << "\n";
 				}
 			} else if (!this_isctl && !next_isctl) {
 				svg << " L " << nx << "," << ny << "\n";
-				debug << " line to " << nx << "," << ny << "\n";			
+				if ( hasDebug ) debug << " line to " << nx << "," << ny << "\n";			
 			} else if (this_isctl && !next_isctl) {
-				debug << " this is ctrl pt. skipping to " << nx << "," << ny << "\n";
+				if ( hasDebug ) debug << " this is ctrl pt. skipping to " << nx << "," << ny << "\n";
 			}
 		}
 		contour_starti = contour_endi+1;
 		svg << " Z\n";
 	}
 	svg << "\n  '/>";
-	std::cout << "\n<!--\n" << debug.str() << " \n-->\n";
+	if ( hasDebug ) std::cout << "\n<!--\n" << debug.str() << " \n-->\n";
 	return svg.str();
 }
 
@@ -338,19 +343,19 @@ public:
 		codepoint = strtol( unicode_s.c_str() , NULL, 0 );
 		// Load the Glyph into the face's Glyph Slot + print details
 		FT_UInt glyph_index = FT_Get_Char_Index( face, codepoint );
-		debug << "<!--\nUnicode requested: " << unicode_s;
-		debug << " (decimal: " << codepoint << " hex: 0x"
+		if ( hasDebug ) debug << "<!--\nUnicode requested: " << unicode_s;
+		if ( hasDebug ) debug << " (decimal: " << codepoint << " hex: 0x"
 			<< std::hex << codepoint << std::dec << ")";
-		debug << "\nGlyph index for unicode: " << glyph_index;
+		if ( hasDebug ) debug << "\nGlyph index for unicode: " << glyph_index;
 		error = FT_Load_Glyph( face, glyph_index, FT_LOAD_NO_SCALE );
-		debug << "\nLoad Glyph into Face's glyph slot. error code: " << error;
+		if ( hasDebug ) debug << "\nLoad Glyph into Face's glyph slot. error code: " << error;
 		slot = face->glyph;
 		ftoutline = slot->outline;
 		char glyph_name[1024];
 		FT_Get_Glyph_Name( face, glyph_index, glyph_name, 1024 );
 		gm = slot->metrics;
-		debug << "\nGlyph Name: " << glyph_name;
-		debug << "\nGlyph Width: " << gm.width
+		if ( hasDebug ) debug << "\nGlyph Name: " << glyph_name;
+		if ( hasDebug ) debug << "\nGlyph Width: " << gm.width
 			<< " Height: " << gm.height
 			<< " Hor. Advance: " << gm.horiAdvance
 			<< " Vert. Advance: " << gm.vertAdvance;
@@ -361,11 +366,13 @@ public:
 		this->gHeight = gm.vertAdvance;
 
 		// Print outline details, taken from the glyph in the slot.
-		debug << "\nNum points: " << ftoutline.n_points;
-		debug << "\nNum contours: " << ftoutline.n_contours;
-		debug << "\nContour endpoint index values:";
-		for ( int i = 0 ; i < ftoutline.n_contours ; i++ ) debug << " " << ftoutline.contours[i];
-		debug << "\n-->\n";
+		if ( hasDebug ) debug << "\nNum points: " << ftoutline.n_points;
+		if ( hasDebug ) debug << "\nNum contours: " << ftoutline.n_contours;
+		if ( hasDebug ) debug << "\nContour endpoint index values:";
+		if ( hasDebug ) 
+		  for ( int i = 0 ; i < ftoutline.n_contours ; i++ )
+		    debug << " " << ftoutline.contours[i];
+		if ( hasDebug ) debug << "\n-->\n";
 
 		// Invert y coordinates (SVG = neg at top, TType = neg at bottom)
 		ftpoints = ftoutline.points;
@@ -376,7 +383,7 @@ public:
 		bbwidth = face->bbox.xMax - face->bbox.xMin;
 		tags = ftoutline.tags;
 		contours = ftoutline.contours;
-		std::cout << debug.str();
+		if ( hasDebug ) std::cout << debug.str();
 	}
 
 	std::string svgheader() {
